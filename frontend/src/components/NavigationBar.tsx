@@ -1,5 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBox, faShieldHalved, faFileExport, faMoon, faSun, faBugSlash } from '@fortawesome/free-solid-svg-icons';
+import { faBox, faShieldHalved, faFileExport, faMoon, faSun, faBugSlash, faRotate } from '@fortawesome/free-solid-svg-icons';
+import { triggerScan } from '../handlers/scan';
 
 const greenTheme = true;
 const bgColor = greenTheme ? 'bg-cyan-800 text-neutral-50' : 'dark:bg-neutral-900 dark:text-neutral-50';
@@ -14,6 +15,16 @@ type Props = {
 };
 
 function NavigationBar({ tab, changeTab, darkMode, setDarkMode }: Readonly<Props>) {
+  const handleRefresh = async () => {
+    try {
+      await triggerScan();
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to trigger scan:', error);
+      alert('Failed to trigger scan. Please try again.');
+    }
+  };
+
   return (
   <nav>
     <ul className={["flex flex-row font-bold items-stretch", bgColor].join(' ')}>
@@ -78,6 +89,20 @@ function NavigationBar({ tab, changeTab, darkMode, setDarkMode }: Readonly<Props
         >
           <FontAwesomeIcon icon={faFileExport} className="mr-1" />
           Export
+        </button>
+      </li>
+
+      <li className={bgHoverColor}>
+        <button
+          onClick={handleRefresh}
+          className="flex items-center h-full px-4 py-2"
+          title="Trigger a new scan"
+        >
+          <FontAwesomeIcon 
+            icon={faRotate} 
+            className="mr-1"
+          />
+          Refresh
         </button>
       </li>
 
