@@ -9,6 +9,7 @@
 
 from ..helpers.add_middleware import FlaskWithMiddleware as Flask
 from ..routes import init_app
+from ..database import db, init_db
 import sys
 import os
 from datetime import datetime, timezone
@@ -25,6 +26,19 @@ def create_app():
     if "SCAN_FILE" not in app.config:
         app.config["SCAN_FILE"] = SCAN_FILE
     app.config["SCAN_DATE"] = "unknown date"
+    
+    # Database configuration
+    if "SQLALCHEMY_DATABASE_URI" not in app.config:
+        # Store database in .vulnscout directory at project root
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+        db_dir = os.path.join(project_root, ".vulnscout")
+        os.makedirs(db_dir, exist_ok=True)
+        db_path = os.path.join(db_dir, "vulnscout.db")
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    
+    # Initialize database
+    init_db(app)
 
     def is_scan_finished():
         if app._INT_SCAN_FINISHED:
