@@ -10,6 +10,7 @@ from ..controllers.vulnerabilities import VulnerabilitiesController
 from ..controllers.assessments import AssessmentsController
 from ..views.openvex import OpenVex
 from ..models.assessment import VulnAssessment
+from ..database import db
 
 ASSESSMENTS_FILE = "/scan/tmp/assessments-merged.json"
 OPENVEX_FILE = "/scan/outputs/openvex.json"
@@ -23,8 +24,14 @@ def init_app(app):
         app.config["OPENVEX_FILE"] = OPENVEX_FILE
 
     def get_assessments():
-        with open(app.config["ASSESSMENTS_FILE"], "r") as f:
-            return AssessmentsController.from_dict(None, None, json.loads(f.read()))
+        # Load from JSON file on first access if database is empty
+        if VulnAssessment.query.count() == 0:
+            try:
+                with open(app.config["ASSESSMENTS_FILE"], "r") as f:
+                    AssessmentsController.from_dict(None, None, json.loads(f.read()))
+            except FileNotFoundError:
+                pass
+        return AssessmentsController(None, None)
 
     def get_all_datas():
         controllers = {}
@@ -72,9 +79,10 @@ def init_app(app):
         if assessCtrl is None:
             return {"error": "Internal error"}, 500
 
+        assessments = assessCtrl.gets_by_vuln(vuln_id)
         if request.args.get('format', 'list') == "dict":
-            return {k: v.to_dict() for k, v in assessCtrl.assessments.items() if v.vuln_id == vuln_id}, 200
-        return [v.to_dict() for k, v in assessCtrl.assessments.items() if v.vuln_id == vuln_id], 200
+            return {a.id: a.to_dict() for a in assessments}, 200
+        return [a.to_dict() for a in assessments], 200
 
     @app.route("/api/vulnerabilities/<vuln_id>/assessments", methods=["POST"])
     def add_assessment(vuln_id: str):
@@ -210,8 +218,13 @@ def init_app(app):
             return {"error": "Failed to delete assessment"}, 500
 
     def save_assessments_to_files(ctrls):
-        with open(app.config["ASSESSMENTS_FILE"], "w") as f:
-            f.write(json.dumps(ctrls["assessments"].to_dict()))
+        # Database is already updated via db.session.commit() in controller methods
+        # Keep JSON file as backup/export
+        try:
+            with open(app.config["ASSESSMENTS_FILE"], "w") as f:
+                f.write(json.dumps(ctrls["assessments"].to_dict()))
+        except Exception:
+            pass  # Don't fail if JSON export fails
 
         vex = OpenVex(ctrls)
         with open(app.config["OPENVEX_FILE"], "w") as f:

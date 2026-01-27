@@ -8,6 +8,8 @@ from .package import Package
 from datetime import datetime, timezone
 from uuid import uuid4
 from typing import Optional
+from ..database import db
+from sqlalchemy import JSON
 
 
 VALID_STATUS_OPENVEX = ["under_investigation", "not_affected", "affected", "fixed"]
@@ -74,28 +76,41 @@ RESPONSES_CDX_VEX = [
 ]
 
 
-class VulnAssessment:
+class VulnAssessment(db.Model):
     """
     Represent the assessment of a vulnerability for a specific set of packages.
     An assessment can be used to track the status of a vulnerability like pending, active, resolved, ...
     A vulnerability can have multiple assessments because assessments are specific to a timestamp.
     """
+    __tablename__ = 'assessments'
+
+    id = db.Column(db.String(36), primary_key=True)
+    vuln_id = db.Column(db.String(255), nullable=False, index=True)
+    packages = db.Column(JSON, nullable=False, default=list)
+    timestamp = db.Column(db.String(50), nullable=False)
+    last_update = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(50), nullable=False, default="under_investigation")
+    status_notes = db.Column(db.Text, default="")
+    justification = db.Column(db.String(100), default="")
+    impact_statement = db.Column(db.Text, default="")
+    responses = db.Column(JSON, nullable=False, default=list)
+    workaround = db.Column(db.Text, default="")
+    workaround_timestamp = db.Column(db.String(50), default="")
 
     def __init__(self, vuln_id: str, packages: Optional[list[str]] = None):
         """Create a new assesment for the given vulnerability (str) and packages (optional)."""
         if isinstance(vuln_id, Vulnerability):
             vuln_id = vuln_id.id
         self.vuln_id = vuln_id
-        self.packages: list[str] = []
+        self.packages = []
         self.timestamp = datetime.now(timezone.utc).isoformat()
         self.last_update = datetime.now(timezone.utc).isoformat()
         self.id = str(uuid4())
-
         self.status = "under_investigation"
         self.status_notes = ""
         self.justification = ""
         self.impact_statement = ""
-        self.responses: list[str] = []
+        self.responses = []
         self.workaround = ""
         self.workaround_timestamp = ""
 
